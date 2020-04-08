@@ -1,18 +1,21 @@
 import runway
-from runway.data_types import vector, image
+#from runway.data_types import vector, image
 import pretrained_networks
 import dnnlib
 import dnnlib.tflib as tflib
 import numpy as np
 import PIL.Image
+import pickle
 
 @runway.setup(options={'checkpoint': runway.file(extension='.pkl')})
 def setup(opts):
     global Gs
-    path = './models/Heather-Day-6000.pkl'
-    with open(path, 'rb') as file:
-        print('Loading networks from "%s"...' % path)
-        _G, _D, Gs = pretrained_networks.load_networks(path)
+    #path = './models/Heather-Day-6000.pkl'
+    tflib.init_tf()
+    with open(opts['checkpoint'], 'rb') as file:
+        #print('Loading networks from "%s"...' % path)
+        #_G, _D, Gs = pretrained_networks.load_networks(path)
+        G, D, Gs = pickle.load(file)
     return Gs
     
 generate_inputs = {
