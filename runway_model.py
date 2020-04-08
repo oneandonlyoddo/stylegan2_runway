@@ -11,11 +11,11 @@ import pickle
 def setup(opts):
     global Gs
     #path = './models/Heather-Day-6000.pkl'
-    tflib.init_tf()
+    #tflib.init_tf()
     with open(opts['checkpoint'], 'rb') as file:
         #print('Loading networks from "%s"...' % path)
-        #_G, _D, Gs = pretrained_networks.load_networks(path)
-        G, D, Gs = pickle.load(file)
+        _G, _D, Gs = pretrained_networks.load_networks(file)
+        #G, D, Gs = pickle.load(file)
     return Gs
     
 generate_inputs = {
