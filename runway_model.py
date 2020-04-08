@@ -1,49 +1,37 @@
-import runway
-#from runway.data_types import vector, image
-import pretrained_networks
-import dnnlib
-import dnnlib.tflib as tflib
-import numpy as np
-import PIL.Image
 import pickle
+import numpy as np
+import tensorflow as tf
+import dnnlib.tflib as tflib
+import runway
+
+fmt = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
 
 @runway.setup(options={'checkpoint': runway.file(extension='.pkl')})
 def setup(opts):
     global Gs
-    #path = './models/Heather-Day-6000.pkl'
-    #tflib.init_tf()
+    tflib.init_tf()
     with open(opts['checkpoint'], 'rb') as file:
-        #print('Loading networks from "%s"...' % path)
-        _G, _D, Gs = pretrained_networks.load_networks(file)
-        #G, D, Gs = pickle.load(file)
+        _G, _D, Gs = pickle.load(file, encoding='latin1')
+    noise_vars = [var for name, var in Gs.components.synthesis.vars.items() if name.startswith('noise')]
+    rnd = np.random.RandomState()
+    tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars})
     return Gs
-    
+
+
 generate_inputs = {
     'z': runway.vector(512, sampling_std=0.5),
     'truncation': runway.number(min=0, max=1, default=0.8, step=0.01)
 }
 
-outputs={
-    'image': runway.image
-}
-
-@runway.command('generate', inputs=generate_inputs, outputs=outputs, description='Generate an image.')
-def generate(model, input_args):
-    
-    noise_vars = [var for name, var in model.components.synthesis.vars.items() if name.startswith('noise')]
-    Gs_kwargs = dnnlib.EasyDict()
-    Gs_kwargs.output_transform = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
-    Gs_kwargs.randomize_noise = False
-    Gs_kwargs.truncation_psi = input_args['truncation']
-    rnd = np.random.RandomState(0)
-    z = input_args['z']
-    #print(z)
+@runway.command('generate', inputs=generate_inputs, outputs={'image': runway.image})
+def convert(model, inputs):
+    z = inputs['z']
+    truncation = inputs['truncation']
     latents = z.reshape((1, 512))
-    #print(z)
-    tflib.set_vars({var: rnd.randn(*var.shape.as_list()) for var in noise_vars}) # [height, width]
-    image = model.run(latents, None, **Gs_kwargs) # [minibatch, height, width, channel]
-    output = PIL.Image.fromarray(image[0], 'RGB')
+    images = model.run(latents, None, truncation_psi=truncation, randomize_noise=False, output_transform=fmt)
+    output = np.clip(images[0], 0, 255).astype(np.uint8)
     return {'image': output}
+
 
 if __name__ == '__main__':
     runway.run(debug=True)
